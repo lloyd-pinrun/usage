@@ -1,5 +1,5 @@
 use crate::docs::markdown::MarkdownRenderer;
-use crate::SpecChoices;
+use crate::{SpecChoices, SpecRequiredIf};
 use indexmap::IndexMap;
 use serde::Serialize;
 
@@ -62,6 +62,7 @@ pub struct SpecFlag {
     pub short: Vec<char>,
     pub long: Vec<String>,
     pub required: bool,
+    pub required_if: Option<SpecRequiredIf>,
     pub deprecated: Option<String>,
     pub var: bool,
     pub hide: bool,
@@ -236,6 +237,7 @@ impl From<&crate::SpecFlag> for SpecFlag {
             short: flag.short.clone(),
             long: flag.long.clone(),
             required: flag.required,
+            required_if: flag.required_if.clone(),
             deprecated: flag.deprecated.clone(),
             var: flag.var,
             hide: flag.hide,

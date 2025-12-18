@@ -21,7 +21,9 @@ arg "argrest" var=#true
 arg "with-default" default="default value"
 
 flag "--flag1" help="flag1 description"
-flag "--flag2" help="flag2 description" long_help=#"""
+flag "--flag2" help="flag2 description" long_help=#""" {
+  required_if "flag1"
+}
 flag2 long description
 
 includes a code block:
@@ -44,7 +46,9 @@ some docs
     $ echo hello world
     hello world
 """#
-flag "--flag3" help="flag3 description" negate="--no-flag3"
+flag "--flag3" help="flag3 description" negate="--no-flag3" {
+  required_if "flag1" "flag2"
+}
 flag "--with-default" required=#true default="default value"
 
 flag "--shell <shell>" {

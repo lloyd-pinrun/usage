@@ -10,7 +10,7 @@ use crate::error::{Result, UsageErr};
 use crate::spec::context::ParsingContext;
 use crate::spec::helpers::NodeHelper;
 use crate::spec::is_false;
-use crate::{string, SpecArg, SpecChoices};
+use crate::{string, SpecArg, SpecChoices, SpecRequiredIf};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct SpecFlag {
@@ -28,6 +28,8 @@ pub struct SpecFlag {
     pub long: Vec<String>,
     #[serde(skip_serializing_if = "is_false")]
     pub required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required_if: Option<SpecRequiredIf>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<String>,
     #[serde(skip_serializing_if = "is_false")]
@@ -91,6 +93,7 @@ impl SpecFlag {
                 "help_long" => flag.help_long = Some(child.arg(0)?.ensure_string()?),
                 "help_md" => flag.help_md = Some(child.arg(0)?.ensure_string()?),
                 "required" => flag.required = child.arg(0)?.ensure_bool()?,
+                "required_if" => flag.required_if = Some(SpecRequiredIf::parse(ctx, &child)?),
                 "var" => flag.var = child.arg(0)?.ensure_bool()?,
                 "hide" => flag.hide = child.arg(0)?.ensure_bool()?,
                 "deprecated" => {
@@ -193,6 +196,12 @@ impl From<&SpecFlag> for KdlNode {
         if flag.required {
             node.push(KdlEntry::new_prop("required", true));
         }
+
+        if let Some(deps) = &flag.required_if {
+            let children = node.children_mut().get_or_insert_with(KdlDocument::new);
+            children.nodes_mut().push(deps.into());
+        }
+
         if flag.var {
             node.push(KdlEntry::new_prop("var", true));
         }
@@ -291,27 +300,39 @@ impl FromStr for SpecFlag {
 impl From<&clap::Arg> for SpecFlag {
     fn from(c: &clap::Arg) -> Self {
         let required = c.is_required_set();
+        let required_if = c
+            .get_possible_values()
+            .iter()
+            .flat_map(|v| v.get_name_and_aliases().map(|s| s.to_string()))
+            .collect::<Vec<_>>();
+
         let help = c.get_help().map(|s| s.to_string());
         let help_long = c.get_long_help().map(|s| s.to_string());
         let help_first_line = help.as_ref().map(|s| string::first_line(s));
+
         let hide = c.is_hide_set();
+
         let var = matches!(
             c.get_action(),
             clap::ArgAction::Count | clap::ArgAction::Append
         );
+
         let default: Vec<String> = c
             .get_default_values()
             .iter()
             .map(|s| s.to_string_lossy().to_string())
             .collect();
-        let short = c.get_short_and_visible_aliases().unwrap_or_default();
+
         let long = c
             .get_long_and_visible_aliases()
             .unwrap_or_default()
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
+
+        let short = c.get_short_and_visible_aliases().unwrap_or_default();
         let name = get_name_from_short_and_long(&short, &long).unwrap_or_default();
+
         let arg = if let clap::ArgAction::Set | clap::ArgAction::Append = c.get_action() {
             let mut arg = SpecArg::from(
                 c.get_value_names()
@@ -325,6 +346,7 @@ impl From<&clap::Arg> for SpecFlag {
                 .iter()
                 .flat_map(|v| v.get_name_and_aliases().map(|s| s.to_string()))
                 .collect::<Vec<_>>();
+
             if !choices.is_empty() {
                 arg.choices = Some(SpecChoices { choices });
             }
@@ -333,12 +355,14 @@ impl From<&clap::Arg> for SpecFlag {
         } else {
             None
         };
-        Self {
+
+        let mut flag = Self {
             name,
             usage: "".into(),
             short,
             long,
             required,
+            required_if: None,
             help,
             help_long,
             help_md: None,
@@ -352,7 +376,13 @@ impl From<&clap::Arg> for SpecFlag {
             deprecated: None,
             negate: None,
             env: None,
+        };
+
+        if !required_if.is_empty() {
+            flag.required_if = Some(SpecRequiredIf { required_if })
         }
+
+        flag
     }
 }
 

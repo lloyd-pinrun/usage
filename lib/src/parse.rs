@@ -416,13 +416,36 @@ pub fn parse_partial(spec: &Spec, input: &[String]) -> Result<ParseOutput, miett
         }
         let has_default =
             !flag.default.is_empty() || flag.arg.iter().any(|a| !a.default.is_empty());
+
         let has_env = flag
             .env
             .as_ref()
             .map(|e| std::env::var(e).is_ok())
             .unwrap_or(false);
+
         if flag.required && !has_default && !has_env {
             out.errors.push(UsageErr::MissingFlag(flag.name.clone()));
+        }
+
+        if let Some(required_if) = &flag.required_if {
+            let dependent_flags = out
+                .flags
+                .retain(|k, _| required_if.required_if.contains(&k.name.to_string()));
+
+            for dep in dependent_flags.iter() {
+                let dep_has_default =
+                    !dep.default.is_empty() || dep.arg.iter().any(|a| !a.default.is_empty());
+
+                let dep_has_env = flag
+                    .env
+                    .as_ref()
+                    .map(|e| std::env::var(e).is_ok())
+                    .unwrap_or(false);
+
+                if !dep_has_default && !has_env {
+                    out.errors.push(UsageErr::MissingFlag(dep.name.clone()));
+                }
+            }
         }
     }
 

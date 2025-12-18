@@ -6,6 +6,7 @@ pub mod config;
 mod context;
 mod data_types;
 pub mod flag;
+pub mod required_if;
 pub mod helpers;
 pub mod mount;
 

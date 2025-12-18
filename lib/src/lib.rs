@@ -8,6 +8,7 @@ pub use crate::spec::choices::SpecChoices;
 pub use crate::spec::cmd::SpecCommand;
 pub use crate::spec::complete::SpecComplete;
 pub use crate::spec::flag::SpecFlag;
+pub use crate::spec::required_if::SpecRequiredIf;
 pub use crate::spec::mount::SpecMount;
 pub use crate::spec::Spec;
 
